@@ -1,0 +1,417 @@
+{
+  "datasets": [
+    {
+      "name": "kpi_funds",
+      "displayName": "KPI: Active Funds",
+      "query": "SELECT COUNT(DISTINCT fund_id) AS value FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward')"
+    },
+    {
+      "name": "kpi_committed",
+      "displayName": "KPI: Total Committed",
+      "query": "SELECT ROUND(SUM(committed_capital_mm) / 1000, 1) AS value FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward')"
+    },
+    {
+      "name": "kpi_called",
+      "displayName": "KPI: Total Called",
+      "query": "SELECT ROUND(SUM(called_capital_mm) / 1000, 1) AS value FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward')"
+    },
+    {
+      "name": "kpi_nav",
+      "displayName": "KPI: Total NAV",
+      "query": "SELECT ROUND(SUM(nav_mm) / 1000, 1) AS value FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward')"
+    },
+    {
+      "name": "kpi_distributed",
+      "displayName": "KPI: Total Distributed",
+      "query": "SELECT ROUND(SUM(distributed_capital_mm) / 1000, 1) AS value FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward')"
+    },
+    {
+      "name": "strategy_summary",
+      "displayName": "Strategy Summary",
+      "query": "SELECT strategy, COUNT(*) AS funds, ROUND(SUM(committed_capital_mm), 0) AS committed_mm, ROUND(SUM(called_capital_mm), 0) AS called_mm, ROUND(SUM(nav_mm), 0) AS nav_mm, ROUND(SUM(distributed_capital_mm), 0) AS distributed_mm, ROUND(AVG(net_irr_pct), 1) AS avg_net_irr, ROUND(AVG(tvpi), 2) AS avg_tvpi FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy ORDER BY committed_mm DESC"
+    },
+    {
+      "name": "strategy_bar_data",
+      "displayName": "Strategy Bar Chart Data",
+      "query": "SELECT strategy, 'Committed' AS metric, SUM(committed_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Called' AS metric, SUM(called_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'NAV' AS metric, SUM(nav_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Distributed' AS metric, SUM(distributed_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy"
+    },
+    {
+      "name": "freshness",
+      "displayName": "NAV Freshness",
+      "query": "SELECT CASE actual_or_estimated WHEN 'actual' THEN 'Current-Quarter Actual' WHEN 'carry_forward' THEN 'Carry-Forward' END AS status, COUNT(*) AS fund_count, ROUND(SUM(nav_mm), 0) AS nav_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated IN ('actual', 'carry_forward') GROUP BY actual_or_estimated"
+    },
+    {
+      "name": "currency_exposure",
+      "displayName": "Currency Exposure",
+      "query": "SELECT currency, COUNT(*) AS fund_count, ROUND(SUM(nav_mm), 0) AS nav_mm, ROUND(SUM(nav_mm * fx_rate_to_usd), 0) AS nav_usd_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY currency ORDER BY nav_mm DESC"
+    },
+    {
+      "name": "tier_distribution",
+      "displayName": "Quality Tier Distribution",
+      "query": "SELECT report_quality_tier AS tier, COUNT(*) AS fund_count, ROUND(SUM(nav_mm), 0) AS nav_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY report_quality_tier ORDER BY CASE report_quality_tier WHEN 'institutional' THEN 1 WHEN 'narrative' THEN 2 WHEN 'poor' THEN 3 END"
+    },
+    {
+      "name": "timeline_pivot",
+      "displayName": "Reporting Timeline",
+      "query": "SELECT fund_id, MAX(CASE WHEN reporting_period = 'Q1 2024' THEN actual_or_estimated END) AS `Q1 2024`, MAX(CASE WHEN reporting_period = 'Q2 2024' THEN actual_or_estimated END) AS `Q2 2024`, MAX(CASE WHEN reporting_period = 'Q3 2024' THEN actual_or_estimated END) AS `Q3 2024`, MAX(CASE WHEN reporting_period = 'Q4 2024' THEN actual_or_estimated END) AS `Q4 2024`, MAX(CASE WHEN reporting_period = 'Q1 2025' THEN actual_or_estimated END) AS `Q1 2025`, MAX(CASE WHEN reporting_period = 'Q2 2025' THEN actual_or_estimated END) AS `Q2 2025`, MAX(CASE WHEN reporting_period = 'Q3 2025' THEN actual_or_estimated END) AS `Q3 2025` FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND actual_or_estimated != 'restated' GROUP BY fund_id ORDER BY fund_id"
+    },
+    {
+      "name": "jcurve_data",
+      "displayName": "J-Curve Data",
+      "query": "SELECT reporting_period, 'Called' AS metric, ROUND(SUM(called_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT reporting_period, 'NAV' AS metric, ROUND(SUM(nav_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT reporting_period, 'Distributed' AS metric, ROUND(SUM(distributed_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period ORDER BY reporting_period, metric"
+    },
+    {
+      "name": "restatements",
+      "displayName": "Silent Restatements",
+      "query": "SELECT r.fund_id, r.fund_name, r.reporting_period, ROUND(o.nav_mm, 1) AS original_nav_mm, ROUND(r.nav_mm, 1) AS restated_nav_mm, ROUND(r.nav_mm - o.nav_mm, 1) AS diff_mm, ROUND((r.nav_mm - o.nav_mm) / o.nav_mm * 100, 2) AS diff_pct FROM main.extraction_demo.ground_truth r JOIN main.extraction_demo.ground_truth o ON r.fund_id = o.fund_id AND r.reporting_period = o.reporting_period AND o.document_type = 'quarterly_report' AND o.actual_or_estimated = 'actual' WHERE r.document_type = 'quarterly_report' AND r.actual_or_estimated = 'restated' ORDER BY r.fund_id, r.reporting_period"
+    },
+    {
+      "name": "data_quality_flags",
+      "displayName": "Data Quality Flags",
+      "query": "SELECT source_document_id AS document_id, flag_type, details FROM main.extraction_demo.data_quality_flags ORDER BY flag_type, source_document_id"
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Portfolio Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "w_title",
+            "textbox_spec": "# LP Portfolio Dashboard\n\nSynthetic dataset exploration — ~27 funds, 7 quarters (Q1 2024 to Q3 2025). All numbers as of Q3 2025 unless noted."
+          },
+          "position": {"x": 0, "y": 0, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_funds",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_funds", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {"fieldName": "value", "displayName": "Active Funds"}
+              },
+              "frame": {"showTitle": true, "title": "Active Funds"}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_committed",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_committed", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {"fieldName": "value", "displayName": "Committed ($B)"}
+              },
+              "frame": {"showTitle": true, "title": "Total Committed ($B)"}
+            }
+          },
+          "position": {"x": 1, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_called",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_called", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {"fieldName": "value", "displayName": "Called ($B)"}
+              },
+              "frame": {"showTitle": true, "title": "Total Called ($B)"}
+            }
+          },
+          "position": {"x": 2, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_nav",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_nav", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {"fieldName": "value", "displayName": "NAV ($B)"}
+              },
+              "frame": {"showTitle": true, "title": "Total NAV ($B)"}
+            }
+          },
+          "position": {"x": 3, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_distributed",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_distributed", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {"fieldName": "value", "displayName": "Distributed ($B)"}
+              },
+              "frame": {"showTitle": true, "title": "Total Distributed ($B)"}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 2, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_strategy_header",
+            "textbox_spec": "## 1. Portfolio Summary by Strategy"
+          },
+          "position": {"x": 0, "y": 5, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_strategy_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "strategy_bar_data", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "metric", "expression": "`metric`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"},
+                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
+                "color": {"fieldName": "metric", "scale": {"type": "categorical"}, "displayName": "Metric"}
+              },
+              "frame": {"showTitle": true, "title": "Capital by Strategy ($mm)"}
+            }
+          },
+          "position": {"x": 0, "y": 6, "width": 4, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_strategy_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "strategy_summary", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "funds", "expression": "`funds`"}, {"name": "committed_mm", "expression": "`committed_mm`"}, {"name": "nav_mm", "expression": "`nav_mm`"}, {"name": "avg_net_irr", "expression": "`avg_net_irr`"}, {"name": "avg_tvpi", "expression": "`avg_tvpi`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "strategy", "displayName": "Strategy", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "funds", "displayName": "Funds", "type": "number", "displayAs": "number", "visible": true, "order": 2},
+                  {"fieldName": "committed_mm", "displayName": "Committed ($mm)", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "nav_mm", "displayName": "NAV ($mm)", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "avg_net_irr", "displayName": "Avg IRR %", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "avg_tvpi", "displayName": "Avg TVPI", "type": "number", "displayAs": "number", "visible": true, "order": 6}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Strategy Detail"}
+            }
+          },
+          "position": {"x": 4, "y": 6, "width": 2, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_freshness_header",
+            "textbox_spec": "## 2. NAV Freshness Analysis\n\nAs of Q3 2025 — what percentage of portfolio NAV is from current-quarter actuals vs carried-forward data? This is the board room query, computed from metadata."
+          },
+          "position": {"x": 0, "y": 12, "width": 3, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_tier_header",
+            "textbox_spec": "## 3. Quality Tier Distribution\n\nHow much NAV comes from each report quality tier? This drives confidence threshold decisions."
+          },
+          "position": {"x": 3, "y": 12, "width": 3, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_freshness_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "freshness", "fields": [{"name": "status", "expression": "`status`"}, {"name": "nav_mm", "expression": "`nav_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "status", "scale": {"type": "categorical"}, "displayName": "Status"},
+                "y": {"fieldName": "nav_mm", "scale": {"type": "quantitative"}, "displayName": "NAV ($mm)"},
+                "color": {"fieldName": "status", "scale": {"type": "categorical"}, "displayName": "Status"}
+              },
+              "frame": {"showTitle": true, "title": "NAV by Data Freshness ($mm)"}
+            }
+          },
+          "position": {"x": 0, "y": 13, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_tier_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "tier_distribution", "fields": [{"name": "tier", "expression": "`tier`"}, {"name": "nav_mm", "expression": "`nav_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "tier", "scale": {"type": "categorical"}, "displayName": "Quality Tier"},
+                "y": {"fieldName": "nav_mm", "scale": {"type": "quantitative"}, "displayName": "NAV ($mm)"},
+                "color": {"fieldName": "tier", "scale": {"type": "categorical"}, "displayName": "Tier"}
+              },
+              "frame": {"showTitle": true, "title": "NAV by Quality Tier ($mm)"}
+            }
+          },
+          "position": {"x": 3, "y": 13, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_currency_header",
+            "textbox_spec": "## 4. Currency Exposure"
+          },
+          "position": {"x": 0, "y": 18, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_currency_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "currency_exposure", "fields": [{"name": "currency", "expression": "`currency`"}, {"name": "nav_mm", "expression": "`nav_mm`"}, {"name": "nav_usd_mm", "expression": "`nav_usd_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "currency", "scale": {"type": "categorical"}, "displayName": "Currency"},
+                "y": {"fieldName": "nav_mm", "scale": {"type": "quantitative"}, "displayName": "NAV (local ccy, $mm)"},
+                "color": {"fieldName": "currency", "scale": {"type": "categorical"}, "displayName": "Currency"}
+              },
+              "frame": {"showTitle": true, "title": "NAV by Currency ($mm)"}
+            }
+          },
+          "position": {"x": 0, "y": 19, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_currency_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "currency_exposure", "fields": [{"name": "currency", "expression": "`currency`"}, {"name": "fund_count", "expression": "`fund_count`"}, {"name": "nav_mm", "expression": "`nav_mm`"}, {"name": "nav_usd_mm", "expression": "`nav_usd_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "currency", "displayName": "Currency", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "fund_count", "displayName": "Funds", "type": "number", "displayAs": "number", "visible": true, "order": 2},
+                  {"fieldName": "nav_mm", "displayName": "NAV (local)", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "nav_usd_mm", "displayName": "NAV (USD)", "type": "number", "displayAs": "number", "visible": true, "order": 4}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Currency Detail"}
+            }
+          },
+          "position": {"x": 3, "y": 19, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_timeline_header",
+            "textbox_spec": "## 5. Reporting Timeline\n\nWhich funds reported which quarters? Shows actual, carry_forward (missing), or null (not yet active)."
+          },
+          "position": {"x": 0, "y": 24, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_timeline_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "timeline_pivot", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "Q1 2024", "expression": "`Q1 2024`"}, {"name": "Q2 2024", "expression": "`Q2 2024`"}, {"name": "Q3 2024", "expression": "`Q3 2024`"}, {"name": "Q4 2024", "expression": "`Q4 2024`"}, {"name": "Q1 2025", "expression": "`Q1 2025`"}, {"name": "Q2 2025", "expression": "`Q2 2025`"}, {"name": "Q3 2025", "expression": "`Q3 2025`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "Q1 2024", "displayName": "Q1 2024", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "Q2 2024", "displayName": "Q2 2024", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "Q3 2024", "displayName": "Q3 2024", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "Q4 2024", "displayName": "Q4 2024", "type": "string", "displayAs": "string", "visible": true, "order": 5},
+                  {"fieldName": "Q1 2025", "displayName": "Q1 2025", "type": "string", "displayAs": "string", "visible": true, "order": 6},
+                  {"fieldName": "Q2 2025", "displayName": "Q2 2025", "type": "string", "displayAs": "string", "visible": true, "order": 7},
+                  {"fieldName": "Q3 2025", "displayName": "Q3 2025", "type": "string", "displayAs": "string", "visible": true, "order": 8}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Fund × Quarter Reporting Status"},
+              "itemsPerPage": 30,
+              "condensed": true
+            }
+          },
+          "position": {"x": 0, "y": 25, "width": 6, "height": 8}
+        },
+        {
+          "widget": {
+            "name": "w_jcurve_header",
+            "textbox_spec": "## 6. J-Curve: Capital Deployment Over Time\n\nAggregated across four representative funds at different lifecycle stages (2017, 2020, 2022, 2024 vintages). Shows portfolio-level Called, NAV, and Distributed capital progression."
+          },
+          "position": {"x": 0, "y": 33, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_jcurve_chart",
+            "queries": [{"name": "main_query", "query": {"datasetName": "jcurve_data", "fields": [{"name": "reporting_period", "expression": "`reporting_period`"}, {"name": "metric", "expression": "`metric`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "reporting_period", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
+                "color": {"fieldName": "metric", "scale": {"type": "categorical"}, "displayName": "Metric"}
+              },
+              "frame": {"showTitle": true, "title": "J-Curve — Capital, NAV & Distributions"}
+            }
+          },
+          "position": {"x": 0, "y": 34, "width": 6, "height": 7}
+        },
+        {
+          "widget": {
+            "name": "w_restatement_header",
+            "textbox_spec": "## 7. Silent Restatements\n\nQuarters where a fund's NAV was quietly revised in a later report. The ground truth captures both original and restated values."
+          },
+          "position": {"x": 0, "y": 43, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_restatement_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "restatements", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "fund_name", "expression": "`fund_name`"}, {"name": "reporting_period", "expression": "`reporting_period`"}, {"name": "original_nav_mm", "expression": "`original_nav_mm`"}, {"name": "restated_nav_mm", "expression": "`restated_nav_mm`"}, {"name": "diff_mm", "expression": "`diff_mm`"}, {"name": "diff_pct", "expression": "`diff_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "fund_name", "displayName": "Fund Name", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "reporting_period", "displayName": "Quarter", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "original_nav_mm", "displayName": "Original NAV", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "restated_nav_mm", "displayName": "Restated NAV", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "diff_mm", "displayName": "Diff ($mm)", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "diff_pct", "displayName": "Diff %", "type": "number", "displayAs": "number", "visible": true, "order": 7}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "NAV Restatements"},
+              "condensed": true
+            }
+          },
+          "position": {"x": 0, "y": 44, "width": 6, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_flags_header",
+            "textbox_spec": "## 8. Data Quality Flags\n\nReports with transcription errors (TVPI/sum inconsistencies) or IRR ambiguity (gross/net not labelled). These are PDF-only artefacts — ground truth retains correct values."
+          },
+          "position": {"x": 0, "y": 49, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_flags_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "data_quality_flags", "fields": [{"name": "document_id", "expression": "`document_id`"}, {"name": "flag_type", "expression": "`flag_type`"}, {"name": "details", "expression": "`details`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_id", "displayName": "Document", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "flag_type", "displayName": "Flag Type", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "details", "displayName": "Details", "type": "string", "displayAs": "string", "visible": true, "order": 3}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Data Quality Flags"},
+              "condensed": true
+            }
+          },
+          "position": {"x": 0, "y": 50, "width": 6, "height": 5}
+        }
+      ]
+    }
+  ]
+}

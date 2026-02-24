@@ -1,0 +1,581 @@
+{
+  "datasets": [
+    {
+      "name": "kpi_total_docs",
+      "displayName": "KPI: Total Documents",
+      "query": "SELECT COUNT(DISTINCT source_file) AS value FROM main.extraction_demo.extractions"
+    },
+    {
+      "name": "kpi_total_fields",
+      "displayName": "KPI: Total Fields",
+      "query": "SELECT COUNT(*) AS value FROM main.extraction_demo.extraction_results"
+    },
+    {
+      "name": "kpi_accuracy",
+      "displayName": "KPI: Overall Accuracy",
+      "query": "SELECT ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS value FROM main.extraction_demo.extraction_results"
+    },
+    {
+      "name": "kpi_auto_accept",
+      "displayName": "KPI: Auto-Accept Rate",
+      "query": "SELECT ROUND(SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS value FROM main.extraction_demo.extraction_results"
+    },
+    {
+      "name": "kpi_source_coverage",
+      "displayName": "KPI: Source Attribution",
+      "query": "SELECT ROUND(SUM(CASE WHEN has_source_attribution THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS value FROM main.extraction_demo.extraction_results"
+    },
+    {
+      "name": "kpi_crossover_y1",
+      "displayName": "KPI: Year 1 Crossover",
+      "query": "SELECT crossover_counterparties AS value FROM main.extraction_demo.cost_model_summary WHERE period = 'Year 1'"
+    },
+    {
+      "name": "doc_volume",
+      "displayName": "Document Volume by Type",
+      "query": "SELECT document_type, COUNT(DISTINCT source_file) AS documents, COUNT(*) AS fields_extracted, ROUND(AVG(raw_confidence), 2) AS avg_raw_confidence FROM main.extraction_demo.extractions GROUP BY document_type ORDER BY documents DESC"
+    },
+    {
+      "name": "accuracy_by_doctype",
+      "displayName": "Accuracy by Document Type",
+      "query": "SELECT document_type, COUNT(*) AS fields, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS accuracy_pct, ROUND(AVG(calibrated_confidence) * 100, 1) AS avg_confidence_pct, ROUND(SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS auto_accept_pct FROM main.extraction_demo.extraction_results GROUP BY document_type ORDER BY accuracy_pct DESC"
+    },
+    {
+      "name": "accuracy_by_tier",
+      "displayName": "Accuracy by Quality Tier",
+      "query": "SELECT report_quality_tier AS tier, COUNT(*) AS total_fields, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS accuracy_pct, ROUND(SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS auto_accept_pct, ROUND(SUM(CASE WHEN routing_decision = 'auto_accept' AND is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END), 0), 1) AS auto_accept_accuracy_pct FROM main.extraction_demo.extraction_results GROUP BY report_quality_tier ORDER BY CASE report_quality_tier WHEN 'institutional' THEN 1 WHEN 'narrative' THEN 2 WHEN 'poor' THEN 3 END"
+    },
+    {
+      "name": "accuracy_by_field",
+      "displayName": "Accuracy by Field",
+      "query": "SELECT field_name, COUNT(*) AS extractions, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS accuracy_pct, ROUND(AVG(calibrated_confidence), 2) AS avg_confidence FROM main.extraction_demo.extraction_results GROUP BY field_name ORDER BY accuracy_pct"
+    },
+    {
+      "name": "field_doctype_matrix",
+      "displayName": "Field Accuracy by Document Type",
+      "query": "SELECT document_type, field_name, COUNT(*) AS n, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS accuracy_pct, ROUND(AVG(calibrated_confidence), 2) AS avg_confidence FROM main.extraction_demo.extraction_results GROUP BY document_type, field_name ORDER BY document_type, accuracy_pct"
+    },
+    {
+      "name": "calibration_curve",
+      "displayName": "Calibration Curve",
+      "query": "SELECT ROUND(calibrated_confidence, 1) AS confidence_bin, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS actual_accuracy_pct, COUNT(*) AS n FROM main.extraction_demo.extraction_results GROUP BY 1 ORDER BY 1"
+    },
+    {
+      "name": "routing_tradeoff",
+      "displayName": "Routing Threshold Trade-off",
+      "query": "SELECT ROUND(threshold, 2) AS threshold, ROUND(auto_accept_accuracy * 100, 1) AS accuracy_pct, ROUND(human_review_pct * 100, 1) AS review_pct, errors_passed FROM main.extraction_demo.routing_thresholds ORDER BY threshold"
+    },
+    {
+      "name": "routing_by_doctype",
+      "displayName": "Routing by Document Type",
+      "query": "SELECT document_type, routing_decision, COUNT(*) AS field_count, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS accuracy_pct FROM main.extraction_demo.extraction_results GROUP BY document_type, routing_decision ORDER BY document_type, CASE routing_decision WHEN 'auto_accept' THEN 1 WHEN 'senior_review' THEN 2 WHEN 'expert_review' THEN 3 WHEN 'reject' THEN 4 END"
+    },
+    {
+      "name": "routing_doctype_summary",
+      "displayName": "Routing Summary by Document Type",
+      "query": "SELECT document_type, COUNT(*) AS total_fields, SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END) AS auto_accept, SUM(CASE WHEN routing_decision = 'senior_review' THEN 1 ELSE 0 END) AS senior_review, SUM(CASE WHEN routing_decision = 'expert_review' THEN 1 ELSE 0 END) AS expert_review, SUM(CASE WHEN routing_decision = 'reject' THEN 1 ELSE 0 END) AS reject, ROUND(SUM(CASE WHEN routing_decision = 'auto_accept' AND is_correct THEN 1 ELSE 0 END) * 100.0 / NULLIF(SUM(CASE WHEN routing_decision = 'auto_accept' THEN 1 ELSE 0 END), 0), 1) AS auto_accept_accuracy_pct FROM main.extraction_demo.extraction_results GROUP BY document_type ORDER BY document_type"
+    },
+    {
+      "name": "review_queue",
+      "displayName": "Review Queue by Field",
+      "query": "SELECT field_name, document_type, COUNT(*) AS fields_to_review, ROUND(AVG(calibrated_confidence), 2) AS avg_confidence, ROUND(AVG(CAST(is_correct AS INT)) * 100, 1) AS pct_correct FROM main.extraction_demo.extraction_results WHERE routing_decision != 'auto_accept' GROUP BY field_name, document_type ORDER BY fields_to_review DESC"
+    },
+    {
+      "name": "lineage_examples",
+      "displayName": "Source Lineage Examples",
+      "query": "SELECT * FROM (SELECT document_type, field_name, extracted_value, ROUND(raw_confidence, 2) AS confidence, SUBSTRING(source_text, 1, 150) AS source_text, source_page, source_file, report_quality_tier, ROW_NUMBER() OVER (PARTITION BY document_type ORDER BY raw_confidence DESC) AS rn FROM main.extraction_demo.extractions WHERE source_text IS NOT NULL AND TRIM(source_text) != '') WHERE rn <= 5 ORDER BY document_type, confidence DESC"
+    },
+    {
+      "name": "lineage_all",
+      "displayName": "Full Lineage Table",
+      "query": "SELECT document_type, report_quality_tier AS tier, fund_id, field_name, extracted_value, ROUND(raw_confidence, 2) AS confidence, SUBSTRING(source_text, 1, 200) AS source_text, source_page, source_file FROM main.extraction_demo.extractions WHERE source_text IS NOT NULL AND TRIM(source_text) != '' ORDER BY document_type, fund_id, field_name"
+    },
+    {
+      "name": "cost_year1_lines",
+      "displayName": "Cost Year 1",
+      "query": "SELECT counterparties, 'Rules-based' AS approach, ROUND(rules_year1 / 1000, 1) AS cost_k FROM main.extraction_demo.cost_model_results UNION ALL SELECT counterparties, 'LLM + confidence' AS approach, ROUND(llm_year1 / 1000, 1) AS cost_k FROM main.extraction_demo.cost_model_results ORDER BY counterparties, approach"
+    },
+    {
+      "name": "cost_3yr_lines",
+      "displayName": "Cost 3-Year TCO",
+      "query": "SELECT counterparties, 'Rules-based' AS approach, ROUND(rules_3yr / 1000, 1) AS cost_k FROM main.extraction_demo.cost_model_results UNION ALL SELECT counterparties, 'LLM + confidence' AS approach, ROUND(llm_3yr / 1000, 1) AS cost_k FROM main.extraction_demo.cost_model_results ORDER BY counterparties, approach"
+    },
+    {
+      "name": "crossover_3yr",
+      "displayName": "3-Year Crossover",
+      "query": "SELECT crossover_counterparties AS value FROM main.extraction_demo.cost_model_summary WHERE period = '3-Year TCO'"
+    }
+  ],
+  "pages": [
+    {
+      "name": "pipeline_metrics",
+      "displayName": "Extraction Pipeline",
+      "layout": [
+        {
+          "widget": {
+            "name": "w_title",
+            "textbox_spec": "# Extraction Pipeline Metrics\n\nEnd-to-end results: PDF ingestion → LLM extraction → confidence calibration → routing → source lineage. All numbers computed directly from extraction results."
+          },
+          "position": {"x": 0, "y": 0, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_docs",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_total_docs", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "Documents"}},
+              "frame": {"showTitle": true, "title": "Documents Processed"}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_fields",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_total_fields", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "Fields"}},
+              "frame": {"showTitle": true, "title": "Fields Extracted"}
+            }
+          },
+          "position": {"x": 1, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_accuracy",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_accuracy", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "%"}},
+              "frame": {"showTitle": true, "title": "Overall Accuracy (%)"}
+            }
+          },
+          "position": {"x": 2, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_auto",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_auto_accept", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "%"}},
+              "frame": {"showTitle": true, "title": "Auto-Accept Rate (%)"}
+            }
+          },
+          "position": {"x": 3, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_source",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_source_coverage", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "%"}},
+              "frame": {"showTitle": true, "title": "Source Attribution (%)"}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_crossover",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_crossover_y1", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "GPs"}},
+              "frame": {"showTitle": true, "title": "LLM Crossover (Year 1)"}
+            }
+          },
+          "position": {"x": 5, "y": 2, "width": 1, "height": 3}
+        },
+
+        {
+          "widget": {
+            "name": "w_s1_header",
+            "textbox_spec": "## 1. Document Pipeline\n\nThree document types flow through the same extraction infrastructure: quarterly reports (portfolio snapshots), capital calls (funding notices), and distribution notices (return events). Different structures, same confidence scoring."
+          },
+          "position": {"x": 0, "y": 5, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_doc_volume_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "doc_volume", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "documents", "expression": "`documents`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "document_type", "scale": {"type": "categorical"}, "displayName": "Document Type"},
+                "y": {"fieldName": "documents", "scale": {"type": "quantitative"}, "displayName": "Documents"},
+                "color": {"fieldName": "document_type", "scale": {"type": "categorical"}, "displayName": "Type"}
+              },
+              "frame": {"showTitle": true, "title": "Documents Processed by Type"}
+            }
+          },
+          "position": {"x": 0, "y": 6, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_doc_volume_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "doc_volume", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "documents", "expression": "`documents`"}, {"name": "fields_extracted", "expression": "`fields_extracted`"}, {"name": "avg_raw_confidence", "expression": "`avg_raw_confidence`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Document Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "documents", "displayName": "Documents", "type": "number", "displayAs": "number", "visible": true, "order": 2},
+                  {"fieldName": "fields_extracted", "displayName": "Fields", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "avg_raw_confidence", "displayName": "Avg Raw Confidence", "type": "number", "displayAs": "number", "visible": true, "order": 4}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Pipeline Volume Detail"},
+              "condensed": true
+            }
+          },
+          "position": {"x": 3, "y": 6, "width": 3, "height": 5}
+        },
+
+        {
+          "widget": {
+            "name": "w_s2_header",
+            "textbox_spec": "## 2. Extraction Accuracy\n\nThree dimensions of the same data: by document type (the structural challenge), by quality tier (the formatting challenge), and by field (the content challenge)."
+          },
+          "position": {"x": 0, "y": 11, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_doctype_accuracy_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "accuracy_by_doctype", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "document_type", "scale": {"type": "categorical"}, "displayName": "Document Type"},
+                "y": {"fieldName": "accuracy_pct", "scale": {"type": "quantitative"}, "displayName": "Accuracy (%)"},
+                "color": {"fieldName": "document_type", "scale": {"type": "categorical"}, "displayName": "Type"}
+              },
+              "frame": {"showTitle": true, "title": "Accuracy by Document Type (%)"}
+            }
+          },
+          "position": {"x": 0, "y": 12, "width": 2, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_tier_accuracy_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "accuracy_by_tier", "fields": [{"name": "tier", "expression": "`tier`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "tier", "scale": {"type": "categorical"}, "displayName": "Quality Tier"},
+                "y": {"fieldName": "accuracy_pct", "scale": {"type": "quantitative"}, "displayName": "Accuracy (%)"},
+                "color": {"fieldName": "tier", "scale": {"type": "categorical"}, "displayName": "Tier"}
+              },
+              "frame": {"showTitle": true, "title": "Accuracy by Quality Tier (%)"}
+            }
+          },
+          "position": {"x": 2, "y": 12, "width": 2, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_accuracy_detail_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "accuracy_by_doctype", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "fields", "expression": "`fields`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}, {"name": "avg_confidence_pct", "expression": "`avg_confidence_pct`"}, {"name": "auto_accept_pct", "expression": "`auto_accept_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Document Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "fields", "displayName": "Fields", "type": "number", "displayAs": "number", "visible": true, "order": 2},
+                  {"fieldName": "accuracy_pct", "displayName": "Accuracy %", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "avg_confidence_pct", "displayName": "Confidence %", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "auto_accept_pct", "displayName": "Auto-Accept %", "type": "number", "displayAs": "number", "visible": true, "order": 5}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Document Type Detail"},
+              "condensed": true
+            }
+          },
+          "position": {"x": 4, "y": 12, "width": 2, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_field_accuracy_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "accuracy_by_field", "fields": [{"name": "field_name", "expression": "`field_name`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "field_name", "scale": {"type": "categorical"}, "displayName": "Field"},
+                "y": {"fieldName": "accuracy_pct", "scale": {"type": "quantitative"}, "displayName": "Accuracy (%)"}
+              },
+              "frame": {"showTitle": true, "title": "Accuracy by Field (%)"}
+            }
+          },
+          "position": {"x": 0, "y": 17, "width": 6, "height": 6}
+        },
+
+        {
+          "widget": {
+            "name": "w_s3_header",
+            "textbox_spec": "## 3. Field × Document Type Matrix\n\nThe cross-reference: which fields are hardest to extract from which document types? Fund name from a quarterly report is different from fund name on a capital call notice."
+          },
+          "position": {"x": 0, "y": 23, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_field_matrix_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "field_doctype_matrix", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "field_name", "expression": "`field_name`"}, {"name": "n", "expression": "`n`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}, {"name": "avg_confidence", "expression": "`avg_confidence`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Document Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "field_name", "displayName": "Field", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "n", "displayName": "Extractions", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "accuracy_pct", "displayName": "Accuracy %", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "avg_confidence", "displayName": "Avg Confidence", "type": "number", "displayAs": "number", "visible": true, "order": 5}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Field × Document Type Accuracy Matrix"},
+              "condensed": true,
+              "itemsPerPage": 30
+            }
+          },
+          "position": {"x": 0, "y": 24, "width": 6, "height": 8}
+        },
+
+        {
+          "widget": {
+            "name": "w_s4_header",
+            "textbox_spec": "## 4. Confidence Calibration & Routing Trade-off\n\nLeft: after isotonic regression, does calibrated confidence match actual accuracy? Points near the diagonal = well-calibrated. Right: higher threshold = fewer errors but more human review."
+          },
+          "position": {"x": 0, "y": 32, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_calibration_chart",
+            "queries": [{"name": "main_query", "query": {"datasetName": "calibration_curve", "fields": [{"name": "confidence_bin", "expression": "`confidence_bin`"}, {"name": "actual_accuracy_pct", "expression": "`actual_accuracy_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "confidence_bin", "scale": {"type": "quantitative"}, "displayName": "Calibrated Confidence"},
+                "y": {"fieldName": "actual_accuracy_pct", "scale": {"type": "quantitative"}, "displayName": "Actual Accuracy (%)"}
+              },
+              "frame": {"showTitle": true, "title": "Calibration: Predicted vs Actual Accuracy"}
+            }
+          },
+          "position": {"x": 0, "y": 33, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_routing_chart",
+            "queries": [{"name": "main_query", "query": {"datasetName": "routing_tradeoff", "fields": [{"name": "threshold", "expression": "`threshold`"}, {"name": "accuracy_pct", "expression": "`accuracy_pct`"}, {"name": "review_pct", "expression": "`review_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "threshold", "scale": {"type": "quantitative"}, "displayName": "Threshold"},
+                "y": {"fieldName": "accuracy_pct", "scale": {"type": "quantitative"}, "displayName": "Auto-Accept Accuracy (%)"}
+              },
+              "frame": {"showTitle": true, "title": "Threshold vs Accuracy & Review Rate"}
+            }
+          },
+          "position": {"x": 3, "y": 33, "width": 3, "height": 6}
+        },
+
+        {
+          "widget": {
+            "name": "w_s5_header",
+            "textbox_spec": "## 5. Routing by Document Type\n\nHow does the confidence-based router handle each document type? Distribution notices may warrant more conservative routing (tax implications) than quarterly report summaries."
+          },
+          "position": {"x": 0, "y": 39, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_routing_doctype_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "routing_by_doctype", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "routing_decision", "expression": "`routing_decision`"}, {"name": "field_count", "expression": "`field_count`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "document_type", "scale": {"type": "categorical"}, "displayName": "Document Type"},
+                "y": {"fieldName": "field_count", "scale": {"type": "quantitative"}, "displayName": "Fields"},
+                "color": {"fieldName": "routing_decision", "scale": {"type": "categorical"}, "displayName": "Routing Decision"}
+              },
+              "frame": {"showTitle": true, "title": "Routing Decisions by Document Type"}
+            }
+          },
+          "position": {"x": 0, "y": 40, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_routing_doctype_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "routing_doctype_summary", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "total_fields", "expression": "`total_fields`"}, {"name": "auto_accept", "expression": "`auto_accept`"}, {"name": "senior_review", "expression": "`senior_review`"}, {"name": "expert_review", "expression": "`expert_review`"}, {"name": "reject", "expression": "`reject`"}, {"name": "auto_accept_accuracy_pct", "expression": "`auto_accept_accuracy_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Doc Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "total_fields", "displayName": "Total", "type": "number", "displayAs": "number", "visible": true, "order": 2},
+                  {"fieldName": "auto_accept", "displayName": "Auto", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "senior_review", "displayName": "Senior", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "expert_review", "displayName": "Expert", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "reject", "displayName": "Reject", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "auto_accept_accuracy_pct", "displayName": "Auto Accuracy %", "type": "number", "displayAs": "number", "visible": true, "order": 7}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Routing Summary by Document Type"},
+              "condensed": true
+            }
+          },
+          "position": {"x": 3, "y": 40, "width": 3, "height": 6}
+        },
+
+        {
+          "widget": {
+            "name": "w_s6_header",
+            "textbox_spec": "## 6. Review Queue\n\nFields below the routing threshold, grouped by field and document type. These need human eyes — but how many, and are they actually wrong?"
+          },
+          "position": {"x": 0, "y": 46, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_review_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "review_queue", "fields": [{"name": "field_name", "expression": "`field_name`"}, {"name": "document_type", "expression": "`document_type`"}, {"name": "fields_to_review", "expression": "`fields_to_review`"}, {"name": "avg_confidence", "expression": "`avg_confidence`"}, {"name": "pct_correct", "expression": "`pct_correct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "field_name", "displayName": "Field", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "document_type", "displayName": "Doc Type", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "fields_to_review", "displayName": "Count", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "avg_confidence", "displayName": "Avg Confidence", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "pct_correct", "displayName": "Actually Correct %", "type": "number", "displayAs": "number", "visible": true, "order": 5}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Review Queue by Field × Document Type"},
+              "condensed": true,
+              "itemsPerPage": 20
+            }
+          },
+          "position": {"x": 0, "y": 47, "width": 6, "height": 7}
+        },
+
+        {
+          "widget": {
+            "name": "w_s7_header",
+            "textbox_spec": "## 7. Source Lineage\n\nEvery extracted value traces back to its source: the exact text span, page number, and file. This is what makes the number auditable — not just \"NAV: $142M\" but where it came from and how confident the extraction is."
+          },
+          "position": {"x": 0, "y": 54, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_lineage_highlights",
+            "queries": [{"name": "main_query", "query": {"datasetName": "lineage_examples", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "field_name", "expression": "`field_name`"}, {"name": "extracted_value", "expression": "`extracted_value`"}, {"name": "confidence", "expression": "`confidence`"}, {"name": "source_text", "expression": "`source_text`"}, {"name": "source_page", "expression": "`source_page`"}, {"name": "report_quality_tier", "expression": "`report_quality_tier`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Doc Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "report_quality_tier", "displayName": "Tier", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "field_name", "displayName": "Field", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "extracted_value", "displayName": "Extracted Value", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "confidence", "displayName": "Confidence", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "source_text", "displayName": "Source Text (from PDF)", "type": "string", "displayAs": "string", "visible": true, "order": 6},
+                  {"fieldName": "source_page", "displayName": "Page", "type": "number", "displayAs": "number", "visible": true, "order": 7}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Top Confidence Extractions — Value → Source Text → Page (5 per document type)"},
+              "condensed": true,
+              "itemsPerPage": 15
+            }
+          },
+          "position": {"x": 0, "y": 56, "width": 6, "height": 7}
+        },
+        {
+          "widget": {
+            "name": "w_lineage_full",
+            "queries": [{"name": "main_query", "query": {"datasetName": "lineage_all", "fields": [{"name": "document_type", "expression": "`document_type`"}, {"name": "tier", "expression": "`tier`"}, {"name": "fund_id", "expression": "`fund_id`"}, {"name": "field_name", "expression": "`field_name`"}, {"name": "extracted_value", "expression": "`extracted_value`"}, {"name": "confidence", "expression": "`confidence`"}, {"name": "source_text", "expression": "`source_text`"}, {"name": "source_page", "expression": "`source_page`"}, {"name": "source_file", "expression": "`source_file`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "document_type", "displayName": "Doc Type", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "tier", "displayName": "Tier", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "field_name", "displayName": "Field", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "extracted_value", "displayName": "Value", "type": "string", "displayAs": "string", "visible": true, "order": 5},
+                  {"fieldName": "confidence", "displayName": "Confidence", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "source_text", "displayName": "Source Text", "type": "string", "displayAs": "string", "visible": true, "order": 7},
+                  {"fieldName": "source_page", "displayName": "Page", "type": "number", "displayAs": "number", "visible": true, "order": 8},
+                  {"fieldName": "source_file", "displayName": "Source File", "type": "string", "displayAs": "string", "visible": true, "order": 9}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Full Extraction Audit Trail"},
+              "condensed": true,
+              "itemsPerPage": 25
+            }
+          },
+          "position": {"x": 0, "y": 63, "width": 6, "height": 10}
+        },
+
+        {
+          "widget": {
+            "name": "w_s8_header",
+            "textbox_spec": "## 8. Cost Model: Rules-Based vs LLM\n\nThe economics argument: rules-based cost scales linearly with counterparty count (per-layout maintenance). LLM + confidence infrastructure has higher upfront cost but flattens as counterparties grow."
+          },
+          "position": {"x": 0, "y": 73, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_cost_y1",
+            "queries": [{"name": "main_query", "query": {"datasetName": "cost_year1_lines", "fields": [{"name": "counterparties", "expression": "`counterparties`"}, {"name": "approach", "expression": "`approach`"}, {"name": "cost_k", "expression": "`cost_k`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "counterparties", "scale": {"type": "quantitative"}, "displayName": "Counterparties"},
+                "y": {"fieldName": "cost_k", "scale": {"type": "quantitative"}, "displayName": "Cost ($K)"},
+                "color": {"fieldName": "approach", "scale": {"type": "categorical"}, "displayName": "Approach"}
+              },
+              "frame": {"showTitle": true, "title": "Year 1 Total Cost ($K)"}
+            }
+          },
+          "position": {"x": 0, "y": 74, "width": 3, "height": 7}
+        },
+        {
+          "widget": {
+            "name": "w_cost_3yr",
+            "queries": [{"name": "main_query", "query": {"datasetName": "cost_3yr_lines", "fields": [{"name": "counterparties", "expression": "`counterparties`"}, {"name": "approach", "expression": "`approach`"}, {"name": "cost_k", "expression": "`cost_k`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "counterparties", "scale": {"type": "quantitative"}, "displayName": "Counterparties"},
+                "y": {"fieldName": "cost_k", "scale": {"type": "quantitative"}, "displayName": "Cost ($K)"},
+                "color": {"fieldName": "approach", "scale": {"type": "categorical"}, "displayName": "Approach"}
+              },
+              "frame": {"showTitle": true, "title": "3-Year TCO with 10% Growth ($K)"}
+            }
+          },
+          "position": {"x": 3, "y": 74, "width": 3, "height": 7}
+        }
+      ]
+    }
+  ]
+}
