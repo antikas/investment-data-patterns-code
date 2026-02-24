@@ -68,7 +68,7 @@
     {
       "name": "jcurve_data",
       "displayName": "J-Curve Data",
-      "query": "SELECT reporting_period, 'Called' AS metric, ROUND(SUM(called_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT reporting_period, 'NAV' AS metric, ROUND(SUM(nav_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT reporting_period, 'Distributed' AS metric, ROUND(SUM(distributed_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period ORDER BY SUBSTR(reporting_period, 4) ASC, SUBSTR(reporting_period, 2, 1) ASC, metric"
+      "query": "SELECT CONCAT(SUBSTR(reporting_period, 4), '-', SUBSTR(reporting_period, 1, 2)) AS quarter, 'Called' AS metric, ROUND(SUM(called_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT CONCAT(SUBSTR(reporting_period, 4), '-', SUBSTR(reporting_period, 1, 2)) AS quarter, 'NAV' AS metric, ROUND(SUM(nav_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period UNION ALL SELECT CONCAT(SUBSTR(reporting_period, 4), '-', SUBSTR(reporting_period, 1, 2)) AS quarter, 'Distributed' AS metric, ROUND(SUM(distributed_capital_mm), 0) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND fund_id IN ('BYT-2017-I', 'INF-2020-I', 'BYT-2022-I', 'BYT-2024-I') AND actual_or_estimated = 'actual' GROUP BY reporting_period ORDER BY quarter, metric"
     },
     {
       "name": "restatements",
@@ -392,12 +392,12 @@
         {
           "widget": {
             "name": "w_jcurve_chart",
-            "queries": [{"name": "main_query", "query": {"datasetName": "jcurve_data", "fields": [{"name": "reporting_period", "expression": "`reporting_period`"}, {"name": "metric", "expression": "`metric`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "queries": [{"name": "main_query", "query": {"datasetName": "jcurve_data", "fields": [{"name": "quarter", "expression": "`quarter`"}, {"name": "metric", "expression": "`metric`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
             "spec": {
               "version": 3,
               "widgetType": "line",
               "encodings": {
-                "x": {"fieldName": "reporting_period", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "x": {"fieldName": "quarter", "scale": {"type": "categorical"}, "displayName": "Quarter"},
                 "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
                 "color": {"fieldName": "metric", "scale": {"type": "categorical"}, "displayName": "Metric"}
               },
