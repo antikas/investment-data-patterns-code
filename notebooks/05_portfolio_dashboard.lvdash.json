@@ -31,9 +31,19 @@
       "query": "SELECT strategy, COUNT(*) AS funds, ROUND(SUM(committed_capital_mm), 0) AS committed_mm, ROUND(SUM(called_capital_mm), 0) AS called_mm, ROUND(SUM(nav_mm), 0) AS nav_mm, ROUND(SUM(distributed_capital_mm), 0) AS distributed_mm, ROUND(AVG(net_irr_pct), 1) AS avg_net_irr, ROUND(AVG(tvpi), 2) AS avg_tvpi FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy ORDER BY committed_mm DESC"
     },
     {
-      "name": "strategy_bar_data",
-      "displayName": "Strategy Bar Chart Data",
-      "query": "SELECT strategy, 'Committed' AS metric, SUM(committed_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Called' AS metric, SUM(called_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'NAV' AS metric, SUM(nav_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Distributed' AS metric, SUM(distributed_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy"
+      "name": "committed_by_strategy",
+      "displayName": "Committed Capital by Strategy",
+      "query": "SELECT strategy, ROUND(SUM(committed_capital_mm), 0) AS committed_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy ORDER BY committed_mm DESC"
+    },
+    {
+      "name": "capital_deployment_data",
+      "displayName": "Capital Deployment by Strategy",
+      "query": "SELECT strategy, 'Called' AS component, SUM(called_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Unfunded' AS component, SUM(committed_capital_mm - called_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy"
+    },
+    {
+      "name": "return_profile_data",
+      "displayName": "Return Profile by Strategy",
+      "query": "SELECT strategy, 'NAV' AS component, SUM(nav_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy UNION ALL SELECT strategy, 'Distributed' AS component, SUM(distributed_capital_mm) AS value_mm FROM main.extraction_demo.ground_truth WHERE document_type = 'quarterly_report' AND reporting_period = 'Q3 2025' AND actual_or_estimated = 'actual' GROUP BY strategy"
     },
     {
       "name": "freshness",
@@ -79,7 +89,7 @@
         {
           "widget": {
             "name": "w_title",
-            "textbox_spec": "# LP Portfolio Dashboard\n\nSynthetic dataset exploration — ~27 funds, 7 quarters (Q1 2024 to Q3 2025). All numbers as of Q3 2025 unless noted."
+            "textbox_spec": "# LP Portfolio Dashboard\n\nSynthetic dataset exploration: ~27 funds, 7 quarters (Q1 2024 to Q3 2025). All numbers as of Q3 2025 unless noted."
           },
           "position": {"x": 0, "y": 0, "width": 6, "height": 2}
         },
@@ -167,25 +177,24 @@
         },
         {
           "widget": {
-            "name": "w_strategy_bar",
-            "queries": [{"name": "main_query", "query": {"datasetName": "strategy_bar_data", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "metric", "expression": "`metric`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "name": "w_committed_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "committed_by_strategy", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "committed_mm", "expression": "`committed_mm`"}], "disaggregated": true}}],
             "spec": {
               "version": 3,
               "widgetType": "bar",
               "encodings": {
                 "x": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"},
-                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
-                "color": {"fieldName": "metric", "scale": {"type": "categorical"}, "displayName": "Metric"}
+                "y": {"fieldName": "committed_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"}
               },
-              "frame": {"showTitle": true, "title": "Capital by Strategy ($mm)"}
+              "frame": {"showTitle": true, "title": "Committed Capital by Strategy ($mm)"}
             }
           },
-          "position": {"x": 0, "y": 6, "width": 4, "height": 6}
+          "position": {"x": 0, "y": 6, "width": 3, "height": 6}
         },
         {
           "widget": {
             "name": "w_strategy_table",
-            "queries": [{"name": "main_query", "query": {"datasetName": "strategy_summary", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "funds", "expression": "`funds`"}, {"name": "committed_mm", "expression": "`committed_mm`"}, {"name": "nav_mm", "expression": "`nav_mm`"}, {"name": "avg_net_irr", "expression": "`avg_net_irr`"}, {"name": "avg_tvpi", "expression": "`avg_tvpi`"}], "disaggregated": true}}],
+            "queries": [{"name": "main_query", "query": {"datasetName": "strategy_summary", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "funds", "expression": "`funds`"}, {"name": "committed_mm", "expression": "`committed_mm`"}, {"name": "called_mm", "expression": "`called_mm`"}, {"name": "nav_mm", "expression": "`nav_mm`"}, {"name": "distributed_mm", "expression": "`distributed_mm`"}, {"name": "avg_net_irr", "expression": "`avg_net_irr`"}, {"name": "avg_tvpi", "expression": "`avg_tvpi`"}], "disaggregated": true}}],
             "spec": {
               "version": 2,
               "widgetType": "table",
@@ -193,30 +202,74 @@
                 "columns": [
                   {"fieldName": "strategy", "displayName": "Strategy", "type": "string", "displayAs": "string", "visible": true, "order": 1},
                   {"fieldName": "funds", "displayName": "Funds", "type": "number", "displayAs": "number", "visible": true, "order": 2},
-                  {"fieldName": "committed_mm", "displayName": "Committed ($mm)", "type": "number", "displayAs": "number", "visible": true, "order": 3},
-                  {"fieldName": "nav_mm", "displayName": "NAV ($mm)", "type": "number", "displayAs": "number", "visible": true, "order": 4},
-                  {"fieldName": "avg_net_irr", "displayName": "Avg IRR %", "type": "number", "displayAs": "number", "visible": true, "order": 5},
-                  {"fieldName": "avg_tvpi", "displayName": "Avg TVPI", "type": "number", "displayAs": "number", "visible": true, "order": 6}
+                  {"fieldName": "committed_mm", "displayName": "Committed", "type": "number", "displayAs": "number", "visible": true, "order": 3},
+                  {"fieldName": "called_mm", "displayName": "Called", "type": "number", "displayAs": "number", "visible": true, "order": 4},
+                  {"fieldName": "nav_mm", "displayName": "NAV", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "distributed_mm", "displayName": "Distributed", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "avg_net_irr", "displayName": "IRR %", "type": "number", "displayAs": "number", "visible": true, "order": 7},
+                  {"fieldName": "avg_tvpi", "displayName": "TVPI", "type": "number", "displayAs": "number", "visible": true, "order": 8}
                 ]
               },
-              "frame": {"showTitle": true, "title": "Strategy Detail"}
+              "frame": {"showTitle": true, "title": "Strategy Detail"},
+              "condensed": true
             }
           },
-          "position": {"x": 4, "y": 6, "width": 2, "height": 6}
+          "position": {"x": 3, "y": 6, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_capital_composition_header",
+            "textbox_spec": "## 2. Capital Composition\n\n**Left: Commitment draw-down.** Each bar's total height is total committed capital. The split shows how much has been called vs what remains unfunded.\n**Right: Total value.** NAV (unrealised) plus distributions (realised). Compare against Called in the table above to gauge value creation (TVPI)."
+          },
+          "position": {"x": 0, "y": 12, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_capital_deployment_chart",
+            "queries": [{"name": "main_query", "query": {"datasetName": "capital_deployment_data", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "component", "expression": "`component`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"},
+                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
+                "color": {"fieldName": "component", "scale": {"type": "categorical"}, "displayName": "Component"}
+              },
+              "frame": {"showTitle": true, "title": "Commitment Draw-Down ($mm)"}
+            }
+          },
+          "position": {"x": 0, "y": 14, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_return_profile_chart",
+            "queries": [{"name": "main_query", "query": {"datasetName": "return_profile_data", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "component", "expression": "`component`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"},
+                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
+                "color": {"fieldName": "component", "scale": {"type": "categorical"}, "displayName": "Component"}
+              },
+              "frame": {"showTitle": true, "title": "Total Value: NAV + Distributed ($mm)"}
+            }
+          },
+          "position": {"x": 3, "y": 14, "width": 3, "height": 6}
         },
         {
           "widget": {
             "name": "w_freshness_header",
-            "textbox_spec": "## 2. NAV Freshness Analysis\n\nAs of Q3 2025 — what percentage of portfolio NAV is from current-quarter actuals vs carried-forward data? This is the board room query, computed from metadata."
+            "textbox_spec": "## 3. NAV Freshness Analysis\n\nAs of Q3 2025: what percentage of portfolio NAV is from current-quarter actuals vs carried-forward data? This is the board room query, computed from metadata."
           },
-          "position": {"x": 0, "y": 12, "width": 3, "height": 1}
+          "position": {"x": 0, "y": 20, "width": 3, "height": 1}
         },
         {
           "widget": {
             "name": "w_tier_header",
-            "textbox_spec": "## 3. Quality Tier Distribution\n\nHow much NAV comes from each report quality tier? This drives confidence threshold decisions."
+            "textbox_spec": "## 4. Quality Tier Distribution\n\nHow much NAV comes from each report quality tier? This drives confidence threshold decisions."
           },
-          "position": {"x": 3, "y": 12, "width": 3, "height": 1}
+          "position": {"x": 3, "y": 20, "width": 3, "height": 1}
         },
         {
           "widget": {
@@ -233,7 +286,7 @@
               "frame": {"showTitle": true, "title": "NAV by Data Freshness ($mm)"}
             }
           },
-          "position": {"x": 0, "y": 13, "width": 3, "height": 5}
+          "position": {"x": 0, "y": 21, "width": 3, "height": 5}
         },
         {
           "widget": {
@@ -250,14 +303,14 @@
               "frame": {"showTitle": true, "title": "NAV by Quality Tier ($mm)"}
             }
           },
-          "position": {"x": 3, "y": 13, "width": 3, "height": 5}
+          "position": {"x": 3, "y": 21, "width": 3, "height": 5}
         },
         {
           "widget": {
             "name": "w_currency_header",
-            "textbox_spec": "## 4. Currency Exposure"
+            "textbox_spec": "## 5. Currency Exposure"
           },
-          "position": {"x": 0, "y": 18, "width": 6, "height": 1}
+          "position": {"x": 0, "y": 26, "width": 6, "height": 1}
         },
         {
           "widget": {
@@ -274,7 +327,7 @@
               "frame": {"showTitle": true, "title": "NAV by Currency ($mm)"}
             }
           },
-          "position": {"x": 0, "y": 19, "width": 3, "height": 5}
+          "position": {"x": 0, "y": 27, "width": 3, "height": 5}
         },
         {
           "widget": {
@@ -294,14 +347,14 @@
               "frame": {"showTitle": true, "title": "Currency Detail"}
             }
           },
-          "position": {"x": 3, "y": 19, "width": 3, "height": 5}
+          "position": {"x": 3, "y": 27, "width": 3, "height": 5}
         },
         {
           "widget": {
             "name": "w_timeline_header",
-            "textbox_spec": "## 5. Reporting Timeline\n\nWhich funds reported which quarters? Shows actual, carry_forward (missing), or null (not yet active)."
+            "textbox_spec": "## 6. Reporting Timeline\n\nWhich funds reported which quarters? Shows actual, carry_forward (missing), or null (not yet active)."
           },
-          "position": {"x": 0, "y": 24, "width": 6, "height": 1}
+          "position": {"x": 0, "y": 32, "width": 6, "height": 1}
         },
         {
           "widget": {
@@ -322,19 +375,19 @@
                   {"fieldName": "Q3 2025", "displayName": "Q3 2025", "type": "string", "displayAs": "string", "visible": true, "order": 8}
                 ]
               },
-              "frame": {"showTitle": true, "title": "Fund × Quarter Reporting Status"},
+              "frame": {"showTitle": true, "title": "Fund x Quarter Reporting Status"},
               "itemsPerPage": 30,
               "condensed": true
             }
           },
-          "position": {"x": 0, "y": 25, "width": 6, "height": 8}
+          "position": {"x": 0, "y": 33, "width": 6, "height": 8}
         },
         {
           "widget": {
             "name": "w_jcurve_header",
-            "textbox_spec": "## 6. J-Curve: Capital Deployment Over Time\n\nAggregated across four representative funds at different lifecycle stages (2017, 2020, 2022, 2024 vintages). Shows portfolio-level Called, NAV, and Distributed capital progression."
+            "textbox_spec": "## 7. J-Curve: Capital Deployment Over Time\n\nAggregated across four representative funds at different lifecycle stages (2017, 2020, 2022, 2024 vintages). Shows portfolio-level Called, NAV, and Distributed capital progression."
           },
-          "position": {"x": 0, "y": 33, "width": 6, "height": 1}
+          "position": {"x": 0, "y": 41, "width": 6, "height": 1}
         },
         {
           "widget": {
@@ -348,17 +401,17 @@
                 "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "$mm"},
                 "color": {"fieldName": "metric", "scale": {"type": "categorical"}, "displayName": "Metric"}
               },
-              "frame": {"showTitle": true, "title": "J-Curve — Capital, NAV & Distributions"}
+              "frame": {"showTitle": true, "title": "J-Curve: Capital, NAV & Distributions"}
             }
           },
-          "position": {"x": 0, "y": 34, "width": 6, "height": 7}
+          "position": {"x": 0, "y": 42, "width": 6, "height": 7}
         },
         {
           "widget": {
             "name": "w_restatement_header",
-            "textbox_spec": "## 7. Silent Restatements\n\nQuarters where a fund's NAV was quietly revised in a later report. The ground truth captures both original and restated values."
+            "textbox_spec": "## 8. Silent Restatements\n\nQuarters where a fund's NAV was quietly revised in a later report. The ground truth captures both original and restated values."
           },
-          "position": {"x": 0, "y": 43, "width": 6, "height": 1}
+          "position": {"x": 0, "y": 51, "width": 6, "height": 1}
         },
         {
           "widget": {
@@ -382,14 +435,14 @@
               "condensed": true
             }
           },
-          "position": {"x": 0, "y": 44, "width": 6, "height": 5}
+          "position": {"x": 0, "y": 52, "width": 6, "height": 5}
         },
         {
           "widget": {
             "name": "w_flags_header",
-            "textbox_spec": "## 8. Data Quality Flags\n\nReports with transcription errors (TVPI/sum inconsistencies) or IRR ambiguity (gross/net not labelled). These are PDF-only artefacts — ground truth retains correct values."
+            "textbox_spec": "## 9. Data Quality Flags\n\nReports with transcription errors (TVPI/sum inconsistencies) or IRR ambiguity (gross/net not labelled). These are PDF-only artefacts, ground truth retains correct values."
           },
-          "position": {"x": 0, "y": 49, "width": 6, "height": 1}
+          "position": {"x": 0, "y": 57, "width": 6, "height": 1}
         },
         {
           "widget": {
@@ -409,7 +462,7 @@
               "condensed": true
             }
           },
-          "position": {"x": 0, "y": 50, "width": 6, "height": 5}
+          "position": {"x": 0, "y": 58, "width": 6, "height": 5}
         }
       ]
     }
