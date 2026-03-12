@@ -1,0 +1,462 @@
+{
+  "datasets": [
+    {
+      "name": "kpi_total_holdings",
+      "displayName": "KPI: Total Holdings",
+      "query": "SELECT COUNT(DISTINCT holding_id) AS value FROM main.extraction_demo.model_holdings"
+    },
+    {
+      "name": "kpi_flagged",
+      "displayName": "KPI: Flagged Assumptions",
+      "query": "SELECT COUNT(*) AS value FROM main.extraction_demo.model_assumptions WHERE approval_status = 'flagged'"
+    },
+    {
+      "name": "kpi_assumption_driven",
+      "displayName": "KPI: Assumption-Driven Holdings (Latest Q)",
+      "query": "SELECT COUNT(DISTINCT holding_id) AS value FROM main.extraction_demo.model_bridges WHERE quarter = 'Q3 2025' AND ABS(assumption_component_mm) > ABS(operational_component_mm) AND total_change_mm != 0"
+    },
+    {
+      "name": "kpi_latest_buyout_multiple",
+      "displayName": "KPI: Avg Buyout Multiple (Latest Q)",
+      "query": "SELECT ROUND(avg_buyout_ebitda_multiple, 2) AS value FROM main.extraction_demo.model_drift ORDER BY CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) DESC LIMIT 1"
+    },
+
+    {
+      "name": "holdings_by_strategy",
+      "displayName": "Holdings by Strategy",
+      "query": "SELECT strategy, COUNT(*) AS holdings FROM main.extraction_demo.model_holdings GROUP BY strategy ORDER BY holdings DESC"
+    },
+    {
+      "name": "method_distribution",
+      "displayName": "Valuation Method Distribution (Latest Q)",
+      "query": "SELECT method, COUNT(*) AS holdings FROM main.extraction_demo.model_assumptions WHERE quarter = 'Q3 2025' GROUP BY method ORDER BY holdings DESC"
+    },
+
+    {
+      "name": "drift_buyout",
+      "displayName": "Buyout EBITDA Multiple Drift",
+      "query": "SELECT CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) AS quarter_sort, quarter AS quarter_label, ROUND(avg_buyout_ebitda_multiple, 2) AS avg_multiple, ROUND(median_buyout_ebitda_multiple, 2) AS median_multiple FROM main.extraction_demo.model_drift WHERE avg_buyout_ebitda_multiple IS NOT NULL ORDER BY quarter_sort"
+    },
+    {
+      "name": "drift_geq",
+      "displayName": "Growth Equity Revenue Multiple Drift",
+      "query": "SELECT CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) AS quarter_sort, quarter AS quarter_label, ROUND(avg_geq_revenue_multiple, 2) AS avg_multiple, ROUND(median_geq_revenue_multiple, 2) AS median_multiple FROM main.extraction_demo.model_drift WHERE avg_geq_revenue_multiple IS NOT NULL ORDER BY quarter_sort"
+    },
+    {
+      "name": "drift_infra",
+      "displayName": "Infrastructure Discount Rate Drift",
+      "query": "SELECT CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) AS quarter_sort, quarter AS quarter_label, ROUND(avg_infra_discount_rate * 100, 2) AS avg_rate_pct, ROUND(median_infra_discount_rate * 100, 2) AS median_rate_pct FROM main.extraction_demo.model_drift WHERE avg_infra_discount_rate IS NOT NULL ORDER BY quarter_sort"
+    },
+    {
+      "name": "drift_re",
+      "displayName": "Real Estate Cap Rate Drift",
+      "query": "SELECT CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) AS quarter_sort, quarter AS quarter_label, ROUND(avg_re_cap_rate * 100, 2) AS avg_rate_pct, ROUND(median_re_cap_rate * 100, 2) AS median_rate_pct FROM main.extraction_demo.model_drift WHERE avg_re_cap_rate IS NOT NULL ORDER BY quarter_sort"
+    },
+
+    {
+      "name": "bridge_stacked",
+      "displayName": "Bridge Attribution by Fund (Latest Q, stacked)",
+      "query": "SELECT fund_id, 'Operational' AS component, ROUND(SUM(operational_component_mm), 1) AS value_mm FROM main.extraction_demo.model_bridges WHERE quarter = 'Q3 2025' GROUP BY fund_id UNION ALL SELECT fund_id, 'Assumption' AS component, ROUND(SUM(assumption_component_mm), 1) AS value_mm FROM main.extraction_demo.model_bridges WHERE quarter = 'Q3 2025' GROUP BY fund_id UNION ALL SELECT fund_id, 'Methodology' AS component, ROUND(SUM(methodology_component_mm), 1) AS value_mm FROM main.extraction_demo.model_bridges WHERE quarter = 'Q3 2025' GROUP BY fund_id ORDER BY fund_id, component"
+    },
+    {
+      "name": "bridge_with_assumptions",
+      "displayName": "Bridge Detail with Assumptions (Latest Q)",
+      "query": "SELECT b.fund_id, h.company_name, h.sector, a_curr.method, CASE a_curr.method WHEN 'comparable_multiples' THEN COALESCE(ROUND(a_prev.ebitda_multiple, 2), ROUND(a_prev.revenue_multiple, 2)) WHEN 'dcf' THEN ROUND(a_prev.discount_rate * 100, 2) WHEN 'cap_rate' THEN ROUND(a_prev.cap_rate * 100, 2) ELSE NULL END AS prev_assumption, CASE a_curr.method WHEN 'comparable_multiples' THEN COALESCE(ROUND(a_curr.ebitda_multiple, 2), ROUND(a_curr.revenue_multiple, 2)) WHEN 'dcf' THEN ROUND(a_curr.discount_rate * 100, 2) WHEN 'cap_rate' THEN ROUND(a_curr.cap_rate * 100, 2) ELSE NULL END AS curr_assumption, CASE a_curr.method WHEN 'dcf' THEN 'pct' WHEN 'cap_rate' THEN 'pct' ELSE 'x' END AS assumption_unit, ROUND(b.operational_component_mm, 1) AS operational_mm, ROUND(b.assumption_component_mm, 1) AS assumption_mm, ROUND(b.closing_fair_value_mm, 1) AS closing_mm, ROUND(b.total_change_mm, 1) AS total_change_mm FROM main.extraction_demo.model_bridges b JOIN main.extraction_demo.model_holdings h ON b.holding_id = h.holding_id JOIN main.extraction_demo.model_assumptions a_curr ON b.holding_id = a_curr.holding_id AND b.quarter = a_curr.quarter JOIN main.extraction_demo.model_assumptions a_prev ON b.holding_id = a_prev.holding_id AND b.prev_quarter = a_prev.quarter WHERE b.quarter = 'Q3 2025' ORDER BY ABS(b.assumption_component_mm) DESC"
+    },
+
+    {
+      "name": "cross_gp_divergence",
+      "displayName": "Cross-GP Divergence — Media & Entertainment",
+      "query": "SELECT a.fund_id, ROUND(AVG(a.ebitda_multiple), 2) AS avg_ebitda_multiple, COUNT(*) AS holdings FROM main.extraction_demo.model_assumptions a JOIN main.extraction_demo.model_holdings h ON a.holding_id = h.holding_id WHERE h.sector = 'Media & Entertainment' AND a.quarter = 'Q3 2025' AND a.ebitda_multiple IS NOT NULL GROUP BY a.fund_id ORDER BY avg_ebitda_multiple"
+    },
+
+    {
+      "name": "flagged_assumptions",
+      "displayName": "Flagged Assumptions (All Quarters)",
+      "query": "SELECT a.fund_id, a.quarter, h.company_name, h.sector, a.method, CASE a.method WHEN 'comparable_multiples' THEN COALESCE(ROUND(a.ebitda_multiple, 2), ROUND(a.revenue_multiple, 2)) WHEN 'dcf' THEN ROUND(a.discount_rate * 100, 2) WHEN 'cap_rate' THEN ROUND(a.cap_rate * 100, 2) ELSE NULL END AS assumption_value, CASE a.method WHEN 'dcf' THEN 'pct' WHEN 'cap_rate' THEN 'pct' ELSE 'x' END AS unit, a.assumption_source, a.approval_status, SUBSTRING(a.notes, 1, 200) AS notes FROM main.extraction_demo.model_assumptions a JOIN main.extraction_demo.model_holdings h ON a.holding_id = h.holding_id WHERE a.approval_status = 'flagged' ORDER BY a.fund_id, CONCAT(SUBSTR(a.quarter, 4, 4), '-Q', SUBSTR(a.quarter, 2, 1))"
+    },
+
+    {
+      "name": "assumption_source_nav",
+      "displayName": "NAV by Assumption Data Source (Latest Q)",
+      "query": "WITH latest AS (SELECT * FROM main.extraction_demo.model_drift ORDER BY CONCAT(SUBSTR(quarter, 4, 4), '-Q', SUBSTR(quarter, 2, 1)) DESC LIMIT 1) SELECT 'Disclosed' AS assumption_source, ROUND(nav_disclosed_mm, 0) AS nav_mm FROM latest UNION ALL SELECT 'Back-calculated', ROUND(nav_back_calculated_mm, 0) FROM latest UNION ALL SELECT 'Extracted', ROUND(nav_extracted_mm, 0) FROM latest"
+    },
+    {
+      "name": "data_access_registry",
+      "displayName": "Data Access Registry",
+      "query": "SELECT d.assumption_source, d.access_mechanism, d.fund_id, d.gp_name, COUNT(DISTINCT h.holding_id) AS holdings, ROUND(SUM(v.fair_value_mm), 1) AS nav_mm FROM main.extraction_demo.model_data_access d JOIN main.extraction_demo.model_holdings h ON d.fund_id = h.fund_id JOIN main.extraction_demo.model_valuations v ON h.holding_id = v.holding_id AND v.quarter = 'Q3 2025' GROUP BY d.assumption_source, d.access_mechanism, d.fund_id, d.gp_name ORDER BY d.assumption_source, d.fund_id"
+    },
+    {
+      "name": "data_access_summary",
+      "displayName": "Data Access Summary",
+      "query": "SELECT d.assumption_source, d.access_mechanism, COUNT(DISTINCT d.fund_id) AS funds, COUNT(DISTINCT h.holding_id) AS holdings, ROUND(SUM(v.fair_value_mm), 0) AS nav_mm FROM main.extraction_demo.model_data_access d JOIN main.extraction_demo.model_holdings h ON d.fund_id = h.fund_id JOIN main.extraction_demo.model_valuations v ON h.holding_id = v.holding_id AND v.quarter = 'Q3 2025' GROUP BY d.assumption_source, d.access_mechanism ORDER BY d.assumption_source"
+    }
+  ],
+  "pages": [
+    {
+      "name": "mark_to_model_governance",
+      "displayName": "Mark-to-Model Governance",
+      "layout": [
+        {
+          "widget": {
+            "name": "w_title",
+            "textbox_spec": "# Mark-to-Model Governance\n\nFair value attribution across 69 holdings, 4 strategies, 7 quarters. Every NAV change decomposed into **operational** (underlying business performance) and **assumption** (comp set, discount rate, or cap rate changes). Assumptions are where governance risk hides."
+          },
+          "position": {"x": 0, "y": 0, "width": 6, "height": 2}
+        },
+
+        {
+          "widget": {
+            "name": "w_kpi_holdings",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_total_holdings", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "Holdings"}},
+              "frame": {"showTitle": true, "title": "Holdings Modelled"}
+            }
+          },
+          "position": {"x": 0, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_flagged",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_flagged", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "Items"}},
+              "frame": {"showTitle": true, "title": "Flagged for Review"}
+            }
+          },
+          "position": {"x": 1, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_assumption_driven",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_assumption_driven", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "Holdings"}},
+              "frame": {"showTitle": true, "title": "Assumption-Driven Q3 2025"}
+            }
+          },
+          "position": {"x": 2, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_kpi_buyout_multiple",
+            "queries": [{"name": "main_query", "query": {"datasetName": "kpi_latest_buyout_multiple", "fields": [{"name": "value", "expression": "`value`"}], "disaggregated": false}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {"value": {"fieldName": "value", "displayName": "x EBITDA"}},
+              "frame": {"showTitle": true, "title": "Avg Buyout Multiple (Q3 2025)"}
+            }
+          },
+          "position": {"x": 3, "y": 2, "width": 1, "height": 3}
+        },
+        {
+          "widget": {
+            "name": "w_assumption_source_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "assumption_source_nav", "fields": [{"name": "assumption_source", "expression": "`assumption_source`"}, {"name": "nav_mm", "expression": "`nav_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "assumption_source", "scale": {"type": "categorical"}, "displayName": "Source"},
+                "y": {"fieldName": "nav_mm", "scale": {"type": "quantitative"}, "displayName": "NAV ($M)"},
+                "color": {"fieldName": "assumption_source", "scale": {"type": "categorical"}, "displayName": "Source"}
+              },
+              "frame": {"showTitle": true, "title": "NAV by Assumption Data Source (Q3 2025)"}
+            }
+          },
+          "position": {"x": 4, "y": 2, "width": 2, "height": 3}
+        },
+
+        {
+          "widget": {
+            "name": "w_s1_header",
+            "textbox_spec": "## 1. Portfolio Composition\n\nHow the portfolio splits by strategy and by valuation method. Different strategies use structurally different models — EBITDA multiples for buyout, revenue multiples for growth equity, DCF for infrastructure, cap rates for real estate."
+          },
+          "position": {"x": 0, "y": 5, "width": 6, "height": 1}
+        },
+        {
+          "widget": {
+            "name": "w_holdings_by_strategy",
+            "queries": [{"name": "main_query", "query": {"datasetName": "holdings_by_strategy", "fields": [{"name": "strategy", "expression": "`strategy`"}, {"name": "holdings", "expression": "`holdings`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"},
+                "y": {"fieldName": "holdings", "scale": {"type": "quantitative"}, "displayName": "Holdings"},
+                "color": {"fieldName": "strategy", "scale": {"type": "categorical"}, "displayName": "Strategy"}
+              },
+              "frame": {"showTitle": true, "title": "Holdings by Strategy"}
+            }
+          },
+          "position": {"x": 0, "y": 6, "width": 3, "height": 5}
+        },
+        {
+          "widget": {
+            "name": "w_method_distribution",
+            "queries": [{"name": "main_query", "query": {"datasetName": "method_distribution", "fields": [{"name": "method", "expression": "`method`"}, {"name": "holdings", "expression": "`holdings`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "method", "scale": {"type": "categorical"}, "displayName": "Valuation Method"},
+                "y": {"fieldName": "holdings", "scale": {"type": "quantitative"}, "displayName": "Holdings"},
+                "color": {"fieldName": "method", "scale": {"type": "categorical"}, "displayName": "Method"}
+              },
+              "frame": {"showTitle": true, "title": "Holdings by Valuation Method (Q3 2025)"}
+            }
+          },
+          "position": {"x": 3, "y": 6, "width": 3, "height": 5}
+        },
+
+        {
+          "widget": {
+            "name": "w_s2_header",
+            "textbox_spec": "## 2. Assumption Drift Over Time\n\nAre assumptions creeping? Each chart tracks the portfolio average and median for its strategy's key assumption. Systematic drift without explicit decisions is a governance failure — it means NAV is moving for reasons that were never approved."
+          },
+          "position": {"x": 0, "y": 11, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_drift_buyout",
+            "queries": [{"name": "main_query", "query": {"datasetName": "drift_buyout", "fields": [{"name": "quarter_sort", "expression": "`quarter_sort`"}, {"name": "avg_multiple", "expression": "`avg_multiple`"}, {"name": "median_multiple", "expression": "`median_multiple`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "quarter_sort", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "y": {"fieldName": "avg_multiple", "scale": {"type": "quantitative"}, "displayName": "Avg EBITDA Multiple (x)"},
+                "y2": {"fieldName": "median_multiple", "scale": {"type": "quantitative"}, "displayName": "Median EBITDA Multiple (x)"}
+              },
+              "frame": {"showTitle": true, "title": "Buyout — EBITDA Multiple Over Time (Avg & Median)"}
+            }
+          },
+          "position": {"x": 0, "y": 13, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_drift_geq",
+            "queries": [{"name": "main_query", "query": {"datasetName": "drift_geq", "fields": [{"name": "quarter_sort", "expression": "`quarter_sort`"}, {"name": "avg_multiple", "expression": "`avg_multiple`"}, {"name": "median_multiple", "expression": "`median_multiple`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "quarter_sort", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "y": {"fieldName": "avg_multiple", "scale": {"type": "quantitative"}, "displayName": "Avg Revenue Multiple (x)"},
+                "y2": {"fieldName": "median_multiple", "scale": {"type": "quantitative"}, "displayName": "Median Revenue Multiple (x)"}
+              },
+              "frame": {"showTitle": true, "title": "Growth Equity — Revenue Multiple Over Time (Avg & Median)"}
+            }
+          },
+          "position": {"x": 3, "y": 13, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_drift_infra",
+            "queries": [{"name": "main_query", "query": {"datasetName": "drift_infra", "fields": [{"name": "quarter_sort", "expression": "`quarter_sort`"}, {"name": "avg_rate_pct", "expression": "`avg_rate_pct`"}, {"name": "median_rate_pct", "expression": "`median_rate_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "quarter_sort", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "y": {"fieldName": "avg_rate_pct", "scale": {"type": "quantitative"}, "displayName": "Avg Discount Rate (%)"},
+                "y2": {"fieldName": "median_rate_pct", "scale": {"type": "quantitative"}, "displayName": "Median Discount Rate (%)"}
+              },
+              "frame": {"showTitle": true, "title": "Infrastructure — Discount Rate Over Time (Avg & Median, %)"}
+            }
+          },
+          "position": {"x": 0, "y": 19, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_drift_re",
+            "queries": [{"name": "main_query", "query": {"datasetName": "drift_re", "fields": [{"name": "quarter_sort", "expression": "`quarter_sort`"}, {"name": "avg_rate_pct", "expression": "`avg_rate_pct`"}, {"name": "median_rate_pct", "expression": "`median_rate_pct`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {"fieldName": "quarter_sort", "scale": {"type": "categorical"}, "displayName": "Quarter"},
+                "y": {"fieldName": "avg_rate_pct", "scale": {"type": "quantitative"}, "displayName": "Avg Cap Rate (%)"},
+                "y2": {"fieldName": "median_rate_pct", "scale": {"type": "quantitative"}, "displayName": "Median Cap Rate (%)"}
+              },
+              "frame": {"showTitle": true, "title": "Real Estate — Cap Rate Over Time (Avg & Median, %)"}
+            }
+          },
+          "position": {"x": 3, "y": 19, "width": 3, "height": 6}
+        },
+
+        {
+          "widget": {
+            "name": "w_s3_header",
+            "textbox_spec": "## 3. Attribution Bridge — Q3 2025\n\nEvery NAV change split into operational (revenue, EBITDA, metrics changed) and assumption (comp set, discount rate, or cap rate changed). Left: stacked by fund. Right: holding-level detail showing the specific assumption change (prev → current) that drove it."
+          },
+          "position": {"x": 0, "y": 25, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_bridge_stacked",
+            "queries": [{"name": "main_query", "query": {"datasetName": "bridge_stacked", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "component", "expression": "`component`"}, {"name": "value_mm", "expression": "`value_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "fund_id", "scale": {"type": "categorical"}, "displayName": "Fund"},
+                "y": {"fieldName": "value_mm", "scale": {"type": "quantitative"}, "displayName": "Change ($M)"},
+                "color": {"fieldName": "component", "scale": {"type": "categorical"}, "displayName": "Component"}
+              },
+              "frame": {"showTitle": true, "title": "Operational vs Assumption Change by Fund ($M) — Q3 2025"}
+            }
+          },
+          "position": {"x": 0, "y": 27, "width": 6, "height": 7}
+        },
+        {
+          "widget": {
+            "name": "w_bridge_detail",
+            "queries": [{"name": "main_query", "query": {"datasetName": "bridge_with_assumptions", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "company_name", "expression": "`company_name`"}, {"name": "sector", "expression": "`sector`"}, {"name": "method", "expression": "`method`"}, {"name": "prev_assumption", "expression": "`prev_assumption`"}, {"name": "curr_assumption", "expression": "`curr_assumption`"}, {"name": "assumption_unit", "expression": "`assumption_unit`"}, {"name": "operational_mm", "expression": "`operational_mm`"}, {"name": "assumption_mm", "expression": "`assumption_mm`"}, {"name": "total_change_mm", "expression": "`total_change_mm`"}, {"name": "closing_mm", "expression": "`closing_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "company_name", "displayName": "Company", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "sector", "displayName": "Sector", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "method", "displayName": "Method", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "prev_assumption", "displayName": "Prev Assumption", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "curr_assumption", "displayName": "Curr Assumption", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "assumption_unit", "displayName": "Unit", "type": "string", "displayAs": "string", "visible": true, "order": 7},
+                  {"fieldName": "operational_mm", "displayName": "Operational ($M)", "type": "number", "displayAs": "number", "visible": true, "order": 8},
+                  {"fieldName": "assumption_mm", "displayName": "Assumption ($M)", "type": "number", "displayAs": "number", "visible": true, "order": 9},
+                  {"fieldName": "total_change_mm", "displayName": "Total Change ($M)", "type": "number", "displayAs": "number", "visible": true, "order": 10},
+                  {"fieldName": "closing_mm", "displayName": "Closing FV ($M)", "type": "number", "displayAs": "number", "visible": true, "order": 11}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Holding-Level Bridge with Assumption Detail — Q3 2025 (sorted by assumption impact)"},
+              "condensed": true,
+              "itemsPerPage": 25
+            }
+          },
+          "position": {"x": 0, "y": 34, "width": 6, "height": 9}
+        },
+
+        {
+          "widget": {
+            "name": "w_s4_header",
+            "textbox_spec": "## 4. Cross-GP Divergence\n\nTwo buyout funds holding Media & Entertainment assets in the same quarter, using peer comps from different vintage perspectives. BYT-2019-I uses conservative public-market comparables; BYT-2022-I uses growth-oriented peers. Same sector, structurally different assumptions — both technically defensible."
+          },
+          "position": {"x": 0, "y": 43, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_cross_gp_bar",
+            "queries": [{"name": "main_query", "query": {"datasetName": "cross_gp_divergence", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "avg_ebitda_multiple", "expression": "`avg_ebitda_multiple`"}, {"name": "holdings", "expression": "`holdings`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "fund_id", "scale": {"type": "categorical"}, "displayName": "Fund"},
+                "y": {"fieldName": "avg_ebitda_multiple", "scale": {"type": "quantitative"}, "displayName": "Avg EBITDA Multiple (x)"},
+                "color": {"fieldName": "fund_id", "scale": {"type": "categorical"}, "displayName": "Fund"}
+              },
+              "frame": {"showTitle": true, "title": "Avg EBITDA Multiple — Media & Entertainment Holdings (Q3 2025)"}
+            }
+          },
+          "position": {"x": 0, "y": 45, "width": 6, "height": 6}
+        },
+
+        {
+          "widget": {
+            "name": "w_s5_header",
+            "textbox_spec": "## 5. Governance Queue — Flagged Assumptions\n\nAssumptions flagged for review across all quarters. Each row shows the specific assumption value, the method it applies to, and the rationale note. These are the items that require investment committee sign-off before the valuation can be used in LP reporting."
+          },
+          "position": {"x": 0, "y": 51, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_flagged_table",
+            "queries": [{"name": "main_query", "query": {"datasetName": "flagged_assumptions", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "quarter", "expression": "`quarter`"}, {"name": "company_name", "expression": "`company_name`"}, {"name": "sector", "expression": "`sector`"}, {"name": "method", "expression": "`method`"}, {"name": "assumption_value", "expression": "`assumption_value`"}, {"name": "unit", "expression": "`unit`"}, {"name": "assumption_source", "expression": "`assumption_source`"}, {"name": "approval_status", "expression": "`approval_status`"}, {"name": "notes", "expression": "`notes`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "quarter", "displayName": "Quarter", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "company_name", "displayName": "Company", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "sector", "displayName": "Sector", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "method", "displayName": "Method", "type": "string", "displayAs": "string", "visible": true, "order": 5},
+                  {"fieldName": "assumption_value", "displayName": "Assumption Value", "type": "number", "displayAs": "number", "visible": true, "order": 6},
+                  {"fieldName": "unit", "displayName": "Unit", "type": "string", "displayAs": "string", "visible": true, "order": 7},
+                  {"fieldName": "assumption_source", "displayName": "Source", "type": "string", "displayAs": "string", "visible": true, "order": 8},
+                  {"fieldName": "approval_status", "displayName": "Status", "type": "string", "displayAs": "string", "visible": true, "order": 9},
+                  {"fieldName": "notes", "displayName": "Rationale / Flag Reason", "type": "string", "displayAs": "string", "visible": true, "order": 10}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Flagged Assumptions Requiring IC Approval"},
+              "condensed": true,
+              "itemsPerPage": 20
+            }
+          },
+          "position": {"x": 0, "y": 53, "width": 6, "height": 8}
+        },
+
+        {
+          "widget": {
+            "name": "w_s6_header",
+            "textbox_spec": "## 6. Data Access Registry\n\nHow the LP obtains valuation assumptions for each fund. **Disclosed:** GP provides assumptions directly via LPAC reporting package or side letter provision. **Back-calculated:** LP derives implied multiples from reported fair value and operating metrics. **Extracted:** assumptions parsed from unstructured GP narrative letters via NLP. The mechanism determines confidence in the underlying data."
+          },
+          "position": {"x": 0, "y": 61, "width": 6, "height": 2}
+        },
+        {
+          "widget": {
+            "name": "w_data_access_summary",
+            "queries": [{"name": "main_query", "query": {"datasetName": "data_access_summary", "fields": [{"name": "assumption_source", "expression": "`assumption_source`"}, {"name": "access_mechanism", "expression": "`access_mechanism`"}, {"name": "funds", "expression": "`funds`"}, {"name": "holdings", "expression": "`holdings`"}, {"name": "nav_mm", "expression": "`nav_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {"fieldName": "assumption_source", "scale": {"type": "categorical"}, "displayName": "Source"},
+                "y": {"fieldName": "funds", "scale": {"type": "quantitative"}, "displayName": "Funds"},
+                "color": {"fieldName": "access_mechanism", "scale": {"type": "categorical"}, "displayName": "Mechanism"}
+              },
+              "frame": {"showTitle": true, "title": "Funds by Data Access Channel"}
+            }
+          },
+          "position": {"x": 0, "y": 63, "width": 3, "height": 6}
+        },
+        {
+          "widget": {
+            "name": "w_data_access_detail",
+            "queries": [{"name": "main_query", "query": {"datasetName": "data_access_registry", "fields": [{"name": "fund_id", "expression": "`fund_id`"}, {"name": "gp_name", "expression": "`gp_name`"}, {"name": "assumption_source", "expression": "`assumption_source`"}, {"name": "access_mechanism", "expression": "`access_mechanism`"}, {"name": "holdings", "expression": "`holdings`"}, {"name": "nav_mm", "expression": "`nav_mm`"}], "disaggregated": true}}],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {"fieldName": "fund_id", "displayName": "Fund", "type": "string", "displayAs": "string", "visible": true, "order": 1},
+                  {"fieldName": "gp_name", "displayName": "GP", "type": "string", "displayAs": "string", "visible": true, "order": 2},
+                  {"fieldName": "assumption_source", "displayName": "Source", "type": "string", "displayAs": "string", "visible": true, "order": 3},
+                  {"fieldName": "access_mechanism", "displayName": "Access Mechanism", "type": "string", "displayAs": "string", "visible": true, "order": 4},
+                  {"fieldName": "holdings", "displayName": "Holdings", "type": "number", "displayAs": "number", "visible": true, "order": 5},
+                  {"fieldName": "nav_mm", "displayName": "NAV ($M)", "type": "number", "displayAs": "number", "visible": true, "order": 6}
+                ]
+              },
+              "frame": {"showTitle": true, "title": "Data Access by Fund — Source, Mechanism, and NAV Exposure"},
+              "condensed": true,
+              "itemsPerPage": 25
+            }
+          },
+          "position": {"x": 3, "y": 63, "width": 3, "height": 6}
+        }
+      ]
+    }
+  ]
+}

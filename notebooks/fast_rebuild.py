@@ -1,21 +1,25 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Fast Rebuild — Tables Only (No PDFs, No LLM)
+# MAGIC # Fast Rebuild — All Patterns (No PDFs, No LLM)
 # MAGIC
 # MAGIC Drops and rebuilds all Delta tables from simulation without regenerating PDFs
 # MAGIC or re-running LLM extraction. Use this when iterating on:
 # MAGIC - Fund definitions, simulation parameters, failure modes
 # MAGIC - Ground truth schema or dashboard queries
+# MAGIC - Valuation model parameters, scenario tuning, bridge logic
 # MAGIC - Anything that doesn't require new PDF content or extraction results
 # MAGIC
 # MAGIC **Skips:** PDF generation (notebook 01 Step 3), LLM extraction (notebook 02)
 # MAGIC
-# MAGIC **Rebuilds:** ground_truth, ground_truth_portfolio_companies, ground_truth_capital_calls,
+# MAGIC **Pattern 1 rebuilds:** ground_truth, ground_truth_portfolio_companies, ground_truth_capital_calls,
 # MAGIC ground_truth_distributions, report_manifest, data_quality_flags,
 # MAGIC cost_model_results, cost_model_summary, and (if extractions exist) extraction_results,
 # MAGIC extraction_summary, routing_thresholds, calibration_results, calibration_results_json
 # MAGIC
-# MAGIC **Preserves:** PDFs in Volume, extractions table (if it exists)
+# MAGIC **Pattern 2 rebuilds:** model_holdings, model_assumptions, model_valuations,
+# MAGIC model_bridges, model_drift, model_data_access
+# MAGIC
+# MAGIC **Preserves:** PDFs in Volume, extractions table
 
 # COMMAND ----------
 
@@ -495,7 +499,62 @@ if crossover_3yr_n:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 6: Calibration & Routing (if extractions exist)
+# MAGIC ## Step 6: Pattern 2 — Mark-to-Model Tables
+# MAGIC
+# MAGIC Generates valuation history, computes attribution bridges and drift,
+# MAGIC then writes all Pattern 2 tables. Pure computation — no LLM calls.
+
+# COMMAND ----------
+
+import dataclasses
+
+from shared.valuation_models import (
+    DATA_ACCESS_RECORDS,
+    PATTERN_2_TABLES,
+    generate_holdings,
+    generate_valuation_history,
+    compute_bridges,
+    compute_drift,
+)
+
+# Drop existing Pattern 2 tables
+for t in PATTERN_2_TABLES:
+    spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.{t}")
+    print(f"  Dropped {catalog}.{schema}.{t}")
+
+# Generate
+p2_holdings = generate_holdings()
+p2_assumptions, p2_valuations = generate_valuation_history(p2_holdings)
+p2_bridges = compute_bridges(p2_holdings, p2_assumptions, p2_valuations)
+p2_drift = compute_drift(p2_assumptions, p2_valuations, p2_bridges)
+
+print(f"\nPattern 2 generated:")
+print(f"  {len(p2_holdings)} holdings")
+print(f"  {len(p2_assumptions)} assumptions")
+print(f"  {len(p2_valuations)} valuations")
+print(f"  {len(p2_bridges)} bridges")
+print(f"  {len(p2_drift)} drift records")
+print(f"  {len(DATA_ACCESS_RECORDS)} data access records")
+
+# COMMAND ----------
+
+def _save_p2(records, table_name):
+    """Write Pattern 2 dataclass list to Delta table."""
+    df = spark.createDataFrame(pd.DataFrame([dataclasses.asdict(r) for r in records]))
+    df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.{schema}.{table_name}")
+    print(f"  {len(records):>4} records  ->  {catalog}.{schema}.{table_name}")
+
+_save_p2(p2_holdings,          "model_holdings")
+_save_p2(p2_assumptions,       "model_assumptions")
+_save_p2(p2_valuations,        "model_valuations")
+_save_p2(p2_bridges,           "model_bridges")
+_save_p2(p2_drift,             "model_drift")
+_save_p2(DATA_ACCESS_RECORDS,  "model_data_access")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 7: Calibration & Routing (if extractions exist)
 # MAGIC
 # MAGIC Runs the notebook 03 logic: accuracy measurement per document type, isotonic
 # MAGIC calibration, routing threshold sweep with document-type-specific thresholds.
@@ -773,7 +832,7 @@ if extractions_exist:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 7: Preview
+# MAGIC ## Step 8: Preview
 
 # COMMAND ----------
 
@@ -797,23 +856,32 @@ display(
 # COMMAND ----------
 
 print(f"{'='*60}")
-print(f"FAST REBUILD COMPLETE — MULTI-DOCUMENT TYPE SUPPORT")
+print(f"FAST REBUILD COMPLETE — ALL PATTERNS")
 print(f"{'='*60}")
-print(f"  Ground truth rows:    {len(ground_truth_rows)}")
-print(f"    - actual:           {actual_reports}")
-print(f"    - carry_forward:    {carry_forward}")
-print(f"    - restated:         {len(restated_snapshots)}")
-print(f"  Portfolio companies:  {len(gt_pc_rows)}")
-print(f"  Capital calls:        {len(gt_cc_rows)}")
-print(f"  Distributions:        {len(gt_dn_rows)}")
-print(f"  Data quality flags:   {len(flag_rows)}")
-print(f"  Cost model:           REBUILT (multi-document parameters)")
+print(f"  Pattern 1:")
+print(f"    Ground truth rows:    {len(ground_truth_rows)}")
+print(f"      - actual:           {actual_reports}")
+print(f"      - carry_forward:    {carry_forward}")
+print(f"      - restated:         {len(restated_snapshots)}")
+print(f"    Portfolio companies:  {len(gt_pc_rows)}")
+print(f"    Capital calls:        {len(gt_cc_rows)}")
+print(f"    Distributions:        {len(gt_dn_rows)}")
+print(f"    Data quality flags:   {len(flag_rows)}")
+print(f"    Cost model:           REBUILT")
 if crossover_n:
-    print(f"    - Year 1 crossover: {crossover_n} counterparties")
+    print(f"      - Year 1 crossover: {crossover_n} counterparties")
 if extractions_exist:
-    print(f"  Calibration/routing:  REBUILT from existing extractions")
+    print(f"    Calibration/routing:  REBUILT from existing extractions")
 else:
-    print(f"  Calibration/routing:  SKIPPED (no extractions table)")
-print(f"  PDFs:                 NOT regenerated (existing preserved)")
-print(f"  LLM extraction:       NOT re-run (existing preserved)")
+    print(f"    Calibration/routing:  SKIPPED (no extractions table)")
+print(f"  Pattern 2:")
+print(f"    Holdings:             {len(p2_holdings)}")
+print(f"    Assumptions:          {len(p2_assumptions)}")
+print(f"    Valuations:           {len(p2_valuations)}")
+print(f"    Bridges:              {len(p2_bridges)}")
+print(f"    Drift records:        {len(p2_drift)}")
+print(f"    Data access:          {len(DATA_ACCESS_RECORDS)}")
+print(f"  Skipped:")
+print(f"    PDFs:                 NOT regenerated (existing preserved)")
+print(f"    LLM extraction:       NOT re-run (existing preserved)")
 print(f"{'='*60}")

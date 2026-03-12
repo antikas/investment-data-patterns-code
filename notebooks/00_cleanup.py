@@ -22,6 +22,15 @@ schema = dbutils.widgets.get("schema")
 
 # COMMAND ----------
 
+import os
+import sys
+
+notebook_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
+project_root = os.path.abspath(os.path.join(notebook_dir, ".."))
+sys.path.insert(0, project_root)
+
+from shared.valuation_models import PATTERN_2_TABLES
+
 tables = [
     # Pattern 1: Extraction Pipeline
     "ground_truth",
@@ -38,7 +47,7 @@ tables = [
     "calibration_results_json",
     "cost_model_results",
     "cost_model_summary",
-]
+] + PATTERN_2_TABLES
 
 for t in tables:
     spark.sql(f"DROP TABLE IF EXISTS {catalog}.{schema}.{t}")
